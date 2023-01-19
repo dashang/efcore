@@ -186,8 +186,9 @@ public sealed partial class InternalEntityEntry : IUpdateEntry
         CancellationToken cancellationToken = default)
     {
         var oldState = _stateData.EntityState;
-        bool adding;
-        await SetupAsync().ConfigureAwait(false);
+        bool adding = PrepareForAdd(entityState);
+        entityState = await PropagateToUnknownKeyAsync(
+            oldState, entityState, adding, forceStateWhenUnknownKey, cancellationToken).ConfigureAwait(false);
 
         if ((adding || oldState is EntityState.Detached)
             && await StateManager.ValueGenerationManager
@@ -195,17 +196,12 @@ public sealed partial class InternalEntityEntry : IUpdateEntry
             && fallbackState.HasValue)
         {
             entityState = fallbackState.Value;
-            await SetupAsync().ConfigureAwait(false);
-        }
-
-        SetEntityState(oldState, entityState, acceptChanges, modifyProperties);
-
-        async Task SetupAsync()
-        {
             adding = PrepareForAdd(entityState);
             entityState = await PropagateToUnknownKeyAsync(
                 oldState, entityState, adding, forceStateWhenUnknownKey, cancellationToken).ConfigureAwait(false);
         }
+
+        SetEntityState(oldState, entityState, acceptChanges, modifyProperties);
     }
 
     private EntityState PropagateToUnknownKey(
